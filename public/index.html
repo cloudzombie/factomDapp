@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Facti</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <script src="js/jquery.js"></script>
+</head>
+<body>
+  <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <!-- Brand and toggle get grouped for better mobile display -->
+      <div class="navbar-header">
+        <a class="navbar-brand" href="/"><span class="glyphicon glyphicon-file text-primary" aria-hidden="true"></span> &nbsp;Facti</a>
+        <span class="navbar-text pull-right"><span class="label label-danger">FOR DEMO PURPOSE ONLY!</span></span>
+      </div>
+    </div><!-- /.container-fluid -->
+  </nav>
+
+
+  <div class="container">
+    <div class="row">
+      <div class="col-xs-6 col-sm-6 col-md-6">
+        <div class="page-header">
+          <h2>Add a Hash<br><small>To validate your file!</small></h2>
+        </div>
+        <form name="addHashForm">
+          <div class="form-group">
+            <label for="passphrase">Passphrase</label>
+            <input type="password" class="form-control" id="passphrase" placeholder="Your passphrase">
+          </div>
+          <div class="form-group">
+            <label for="currHash">Hash</label>
+            <input type="text" class="form-control" id="currHash" maxlength="32" placeholder="This is the hash">
+          </div>
+          <button type="button" id="submit" class="col-xs-12 col-sm-12 col-md-12 btn btn-default">Add</button>
+        </form>
+        <p id="submitted"></p>
+      </div>
+
+      <div class="col-xs-6 col-sm-6 col-md-6">
+        <div class="page-header">
+          <h2>Guide<br><small>You should know what you are doing!</small></h2>
+        </div>
+        <p>- example: 12345678901234567890123456789011</p>
+        <p>- You can only view the last 25 Tweets below.</p>
+        <p>- The tweets get reloaded every 10 seconds.</p>
+        <p>- For beta purposes the fee is 0 XCR. That means you can enter every passphrase you want.</p>
+
+        <p>This is a demo dapp to show possible applications for Crypti's decentralized application platform. This dapp was done within a few hours. Source code on <a target="_blank" href="https://github.com/MaxKK/decentralizedTwitter">GitHub:MaxKK</a>.</p>
+      </div>
+    </div>
+  </div>
+  <hr>
+  <div class="container" id="hashOverview"></div>
+
+  <script type="text/javascript">
+    var url = window.location.href;
+    var parts = url.split('/');
+    var dappId = parts[parts.indexOf('dapps') + 1];
+    var recipient = "7458708118531132176C"; // TODO; get id from passphrase
+    var prevHash = "000000000000000000000000000000000000000000000000000000000000000";
+    var prevHashExists = false; // Is there a prevHash?
+    var currHash = "000000000000000000000000000000000000000000000000000000000000000";
+
+    function reloadPage() {
+     window.location.reload();
+    }
+
+    $("#submit").click(function () {
+        if (document.addHashForm.passphrase.value == "")
+        {
+            alert("You didn't typed in your passphrase!")
+            return;
+        }
+
+        if (document.addHashForm.currHash.value == "")
+        {
+            alert("You didn't typed in a hash!")
+            return;
+        }
+
+        // später kann man noch hinzufügen, zu welcher datei der hash gehört. damit man verschiedene hash chains erstellen kann.
+
+
+        // Check if it's the first hash in the chain of the account
+        jQuery.get("/api/dapps/" + dappId + "/api/hashes/list?recipientId=" + recipient, function (data) {
+            jQuery.each(data.response.hashes, function (key, value) {
+
+              alert("sf");
+              prevHash = value.asset.prevHash;
+              alert(prevHash);
+              currHash = value.asset.currHash;
+              alert(prevHash);
+              if (prevHash == "" || prevHash == false)
+                {
+                  prevHashExists = false;
+                  alert("222");
+                }
+              else
+                {
+                  prevHashExists = true;
+                  alert("111");
+                }
+              return; // Only first run, after that go out of the loop
+            })
+        });
+
+        if (prevHashExists == true)
+        {
+          prevHash = currHash; // Copy old hash to prevHash
+          currHash = document.addHashForm.currHash.value; // Copy new hash to currHash
+          alert("haha");
+        }
+        else if (prevHashExists == false)
+        {
+          prevHash = "000000000000000000000000000000000000000000000000000000000000000"; // Initialize first prevHash as 0
+          currHash = document.addHashForm.currHash.value;
+          alert("123");
+        }
+
+        // Save values to sidechain
+        jQuery.ajax({
+            url: '/api/dapps/' + dappId + '/api/hashes/add',
+            type: 'PUT',
+            dataType: 'json',
+            data: { "recipientId": recipient, "secret": document.addHashForm.passphrase.value, "prevHash": prevHash, "currHash": currHash }
+        }).done(function (resp) {
+            alert("Your hash will be processed in ~10 seconds and added")
+        });
+    });
+
+    function getHashes() {
+        jQuery.get("/api/dapps/" + dappId + "/api/hashes/list?recipientId=" + recipient, function (data) {
+            $("#hashOverview").html('');
+            if (data.error == "DAPPS.DAPPS_NOT_READY") {
+                alert("Dapp offline! The master node which computes your instance of this dapp is offline. This dapp currently runs only on 1 master node to show its functionality during the open beta test!");
+            }
+
+
+            jQuery.each(data.response.hashes, function (key, value) {
+                if (value.recipientId == recipient) {
+                    value.recipientId = "Public Tweet";
+                }
+                var numberOfTweets = data.response.hashes.length - 20;
+                if (key < numberOfTweets) {
+                    return;
+                }
+                $("#hashOverview")
+                        .prepend("<table class='table table-bordered'><tr><td class='col-md-2'><strong>#" + key + "</strong></td><td class='col-md-4'><strong>Sender:</strong> " + value.senderId + "</td><td class='col-md-4'><strong>Recipient:</strong> " + value.recipientId + "</td><td class='col-md-4'>" + value.blockId.substring(0, 12) + "</td></tr><tr><td colspan='4'><strong>prevHash:</strong><br>" + value.asset.prevHash + "</td></tr><tr><td colspan='4'><strong>Hash:</strong><br>" + value.asset.currHash + "</td></tr></table>");
+            })
+        });
+    }
+
+    getHashes();
+    setInterval(function () {
+        getHashes();
+    }, 10000);
+  </script>
+</body>
+</html>
