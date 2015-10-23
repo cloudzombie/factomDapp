@@ -9,11 +9,15 @@ function Factom(cb, _library) {
 }
 
 Factom.prototype.create = function (data, trs) {
-	trs.recipientId = data.recipientId;
 	trs.asset = {
-		prevHash: new Buffer(data.prevHash, 'utf8').toString('hex'), // Save previous hash as hex string
-		currHash: new Buffer(data.currHash, 'utf8').toString('hex') // Save hash as hex string
+		factom: {
+			currHash: new Buffer(data.currHash, 'utf8').toString('hex')
+		}
 	};
+	
+	if (data.prevHash) {
+		trs.asset.factom.prevHash = new Buffer(data.prevHash, 'utf8').toString('hex')
+	}
 
 	return trs;
 }
